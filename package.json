@@ -1,0 +1,31 @@
+{
+  "name": "truesign-fastify-hook",
+  "version": "1.0.0",
+  "description": "Simple Fastify hook for handling requests with truesign tokens on query string",
+  "main": "index.js",
+  "scripts": {
+    "prepublish": "npm run build",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": [
+    "fastify",
+    "fastify-hook",
+    "truesign"
+  ],
+  "author": "Julian Toledo",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.23.2",
+    "@babel/preset-env": "^7.23.2",
+    "@babel/preset-typescript": "^7.23.2",
+    "@types/jest": "^29.5.6",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@types/node": "^20.8.9"
+  }
+}
