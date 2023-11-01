@@ -9,7 +9,48 @@
   </a>
 </p>
 
-> Simple Fastify hook for handling requests with truesign tokens on query string
+This is a simple Fastify hook for handling requests with [Truesign](https://truesign.ai/) tokens on query string.
+
+## Usage example
+```js
+import { getTruesignHook, TruesignHookConfig } from 'truesign-fastify-hook';
+
+function shouldAcceptToken(
+  decryptedToken: DecryptedToken, 
+  config: TruesignHookConfig
+): boolean {
+  if (((Date.now() - decryptedToken.timestamp) / 1000) > config.tokenExpirationTimeSeconds) return false;
+  return true;
+}
+
+const trueSignOptions: TruesignHookConfig = {
+  shouldAcceptToken,
+  encryptionKey: process.env.TRUESIGN_KEY,
+  allowUnauthenticated: false,
+  // we can add more configuration so we have this available in shouldAcceptToekn function
+  tokenExpirationTimeSeconds: 30,
+};
+
+// when dealing with routes
+fastify.addHook('onRequest', getTruesignHook(trueSignOptions));
+
+// or in each secured route
+fastify.route({
+  method: 'GET',
+  url: '/',
+  schema: { ... },
+  onRequest: getTruesignHook(trueSignOptions),
+  // or
+  preValidation: getTruesignHook(trueSignOptions),
+  // or
+  // or others
+});
+
+```
+
+The decrypted token interface is a copy from [Truesign docs](https://my.truesign.ai/docs).
+
+This is a simple package for a simple use case. If you want to extend it to more use cases, plese [contribute](./CONTRIBUTING.md)!
 
 ## Install
 
