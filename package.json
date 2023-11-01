@@ -2,7 +2,12 @@
   "name": "truesign-fastify-hook",
   "version": "1.0.0",
   "description": "Simple Fastify hook for handling requests with truesign tokens on query string",
-  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/julianitor/truesign-fastify-hook"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "prepublish": "npm run build",
     "build": "tsc",

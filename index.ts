@@ -1,5 +1,9 @@
 import * as crypto from 'crypto';
 
+export interface DynamicObject {
+  [k: string]: any;
+}
+
 export interface DecryptedToken {
   // network
   proxy: boolean;
@@ -55,13 +59,16 @@ export function decryptTruesignToken(encryptionKey: string, token: string): Decr
 
 export type ShouldAcceptTokenFunction = (
   decryptedToken: DecryptedToken,
-  config?: Omit<TruesignHookConfig, 'shouldAcceptToken'>,
+  options?: TruesignHookConfig,
   ) => boolean;
 
-export interface TruesignHookConfig {
+export interface TruesignHookConfig extends DynamicObject {
   encryptionKey: string;
   allowUnauthenticated: boolean;
-  shouldAcceptToken: ShouldAcceptTokenFunction;
+  shouldAcceptToken: (
+    decryptedToken: DecryptedToken,
+    options?: TruesignHookConfig,
+  ) => boolean;
   queryStringPath?: string;
   decryptFunction?: Function; 
 }
