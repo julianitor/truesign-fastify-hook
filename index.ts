@@ -22,6 +22,9 @@ export interface DecryptedToken {
   ipv4: string;
   ipv6: string;
   country: string;
+
+  // only if the request is blocked
+  blocked?: 'anonymizer' | 'cluster' | 'disposable' | 'notdeliverable' | 'notbrowser' | 'ratelimit' | 'country' | 'cors';
 }
 
 /**
