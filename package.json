@@ -1,6 +1,6 @@
 {
   "name": "truesign-fastify-hook",
-  "version": "1.0.0",
+  "version": "2.0.0-alpha.2",
   "description": "Simple Fastify hook for handling requests with truesign tokens on query string",
   "repository": {
     "type": "git",
@@ -16,6 +16,7 @@
   "keywords": [
     "fastify",
     "fastify-hook",
+    "fastify-truesign",
     "truesign"
   ],
   "author": "Julian Toledo",

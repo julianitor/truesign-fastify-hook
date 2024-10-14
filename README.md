@@ -42,7 +42,6 @@ fastify.route({
   onRequest: getTruesignHook(trueSignOptions),
   // or
   preValidation: getTruesignHook(trueSignOptions),
-  // or
   // or others
 });
 

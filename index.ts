@@ -5,42 +5,28 @@ export interface DynamicObject {
 }
 
 export interface DecryptedToken {
-  // network
-  proxy: boolean;
-  vpn: boolean;
-  tor: boolean;
+  anonymizer: boolean;
+  notBrowser: boolean;
+  clusterId: string;
+  cors: string;
 
-  // email
+  // only added if an email or domain was passed on the request
   email: string;
   disposable: boolean;
-  noMx: boolean;
-  fake: boolean;
+  notDeliverable: boolean;
   typo: string;
-
-  // agent
-  script: boolean;
-
-  // high load attacks
-  clusterId: string;
 
   // identifiers
   uniqueKey: number;
   timestamp: number;
-  visitorId: string;
   ipv4: string;
   ipv6: string;
   country: string;
 
-  // the reason why Truesign decides to block a visitor
-  block: 'gproxy' | 'vpn' | 'tor' | 'disposable' | 'notdeliverable' | 'script' | 'cluster' | 'country' | 'ratelimit';
-
-  // something went wrong on our side
-  error: {
-    correlationId: number;
-    ip: string;
-    email: string;
-  };
+  // only if the request is blocked
+  blocked?: 'anonymizer' | 'cluster' | 'disposable' | 'notdeliverable' | 'notbrowser' | 'ratelimit' | 'country' | 'cors';
 }
+
 /**
  * From official site: https://my.truesign.ai/docs
  * Decrypts token with encryptionKey and returns a JSON with the decrypted info 
@@ -80,10 +66,11 @@ export interface TruesignHookConfig extends DynamicObject {
  * @returns 
  */
 export const getTruesignHook = (config: TruesignHookConfig) => (req: any, res: any, next: any) => {
+  const queryPath = config.queryStringPath || 'ts-token';
   if (config.allowUnauthenticated || !config.encryptionKey) {
     return next();
   }
-  const tsToken = req.query[config.queryStringPath || 'tsToken'];
+  const tsToken = req.query[queryPath];
   if (!tsToken) {
     return res.code(401).send();
   }
@@ -91,6 +78,6 @@ export const getTruesignHook = (config: TruesignHookConfig) => (req: any, res: a
   if (!config.shouldAcceptToken(decryptedToken, config)) {
     return res.code(401).send();
   }
-  req[config.queryStringPath || 'tsToken'] = decryptedToken;
+  req[queryPath] = decryptedToken;
   next();
 };
