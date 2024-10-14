@@ -22,7 +22,7 @@ test('Allowing unauthenticated', () => {
   const mockResponse = getMockResponse(); 
   const mockRequest = {
     query: {
-      tsToken: '123',
+      'ts-token': '123',
     },
   }
 
@@ -41,7 +41,7 @@ test('Not allowing unauthenticated but passing empty encryptionKey', () => {
   const mockResponse = getMockResponse(); 
   const mockRequest = {
     query: {
-      tsToken: '123',
+      'ts-token': '123',
     },
   }
 
@@ -81,7 +81,7 @@ test('Response sending 401 if shouldAcceptToken resolves to false', () => {
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
     query: {
-      tsToken: 'jarl',
+      'ts-token': 'jarl',
     },
   }
 
@@ -103,7 +103,7 @@ test('Allowing properly authenticated token', () => {
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
     query: {
-      tsToken: 'jarl',
+      'ts-token': 'jarl',
     },
   }
 
