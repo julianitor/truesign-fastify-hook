@@ -66,18 +66,23 @@ export interface TruesignHookConfig extends DynamicObject {
  * @returns 
  */
 export const getTruesignHook = (config: TruesignHookConfig) => (req: any, res: any, next: any) => {
-  const queryPath = config.queryStringPath || 'ts-token';
-  if (config.allowUnauthenticated || !config.encryptionKey) {
-    return next();
-  }
-  const tsToken = req.query[queryPath];
-  if (!tsToken) {
+  try {
+    const queryPath = config.queryStringPath || 'ts-token';
+    if (config.allowUnauthenticated || !config.encryptionKey) {
+      return next();
+    }
+    const tsToken = req.query[queryPath];
+    if (!tsToken) {
+      return res.code(401).send();
+    }
+    const decryptedToken = (config.decryptFunction || decryptTruesignToken)(config.encryptionKey, tsToken);
+    if (!config.shouldAcceptToken(decryptedToken, config)) {
+      return res.code(401).send();
+    }
+    req[queryPath] = decryptedToken;
+    next();
+  } catch (error) {
+    console.error(error);
     return res.code(401).send();
   }
-  const decryptedToken = (config.decryptFunction || decryptTruesignToken)(config.encryptionKey, tsToken);
-  if (!config.shouldAcceptToken(decryptedToken, config)) {
-    return res.code(401).send();
-  }
-  req[queryPath] = decryptedToken;
-  next();
 };
