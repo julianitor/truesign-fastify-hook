@@ -6,7 +6,7 @@ export interface DynamicObject {
 
 export interface DecryptedToken {
   anonymizer: boolean;
-  notBrowser: boolean;
+  bot: boolean;
   clusterId: string;
   cors: string;
 
@@ -22,9 +22,6 @@ export interface DecryptedToken {
   ipv4: string;
   ipv6: string;
   country: string;
-
-  // only if the request is blocked
-  blocked?: 'anonymizer' | 'cluster' | 'disposable' | 'notdeliverable' | 'notbrowser' | 'ratelimit' | 'country' | 'cors';
 }
 
 /**
