@@ -42,6 +42,54 @@ If you then still feel the need to ask a question and need clarification, we rec
 We will then take care of the issue as soon as possible.
 
 
+## Commit Message Guidelines
+
+This project follows the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages. This format allows for automated changelog generation and helps in determining semantic version bumps.
+
+### Format
+
+Each commit message should be structured as follows:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Examples:**
+
+- `feat: add new user authentication feature`
+- `fix(api): correct error handling for invalid requests`
+- `docs: update README with setup instructions`
+- `chore(deps): upgrade lodash to version 4.17.21`
+- `feat!: add a new API endpoint that breaks compatibility with v1` (Note the `!` for breaking change)
+- `fix: resolve issue with data parsing
+
+BREAKING CHANGE: The data parsing logic has been significantly altered, and existing integrations may require updates.` (Breaking change indicated in the footer)
+
+### Common Types
+
+- **feat**: A new feature for the user (correlates with MINOR in Semantic Versioning).
+- **fix**: A bug fix for the user (correlates with PATCH in Semantic Versioning).
+- **docs**: Changes to documentation only.
+- **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc).
+- **refactor**: A code change that neither fixes a bug nor adds a feature.
+- **perf**: A code change that improves performance.
+- **test**: Adding missing tests or correcting existing tests.
+- **build**: Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm).
+- **ci**: Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs).
+- **chore**: Other changes that don't modify src or test files.
+
+### Breaking Changes
+
+A commit that introduces a breaking API change MUST indicate this by appending a `!` after the type/scope (e.g., `feat(api)!: ...`) or by including `BREAKING CHANGE:` in the commit footer. This correlates with MAJOR in Semantic Versioning.
+
+### Automated Changelog
+
+The `CHANGELOG.md` file in this project is automatically generated based on these commit messages using the `standard-version` tool. When you make commits following this convention, your changes will be automatically included in the changelog during the release process. This makes it crucial to write clear and informative commit messages.
+
 
 ## I Want To Contribute
 
