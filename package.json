@@ -1,6 +1,6 @@
 {
   "name": "truesign-fastify-hook",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Simple Fastify hook for handling requests with truesign tokens on query string",
   "repository": {
     "type": "git",
