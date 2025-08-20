@@ -1,10 +1,10 @@
 import * as crypto from 'crypto';
 
-export interface DynamicObject {
+interface DynamicObject {
   [k: string]: any;
 }
 
-export interface DecryptedToken {
+export type DecryptedToken = {
   anonymizer: boolean;
   bot: boolean;
   clusterId: string;
@@ -19,10 +19,12 @@ export interface DecryptedToken {
   // identifiers
   uniqueKey: number;
   timestamp: number;
-  ipv4: string;
-  ipv6: string;
   country: string;
-}
+} & (
+  // ipv4 and ipv6 are mutually exclusive (and therefore optional if the other is present).
+  | { ipv4: string; }
+  | { ipv6: string; }
+)
 
 /**
  * From official site: https://my.truesign.ai/docs
