@@ -1,27 +1,96 @@
 import * as crypto from 'crypto';
 
-export interface DecryptedToken {
-  anonymizer: boolean;
-  notBrowser: boolean;
-  clusterId: string;
-  cors: string;
+export type DecryptedToken =
+  & DecryptedTokenBase
+  & DecryptedTokenEmail
+  & DecryptedTokenIp;
 
-  // only added if an email or domain was passed on the request
-  email: string;
-  disposable: boolean;
-  notDeliverable: boolean;
-  typo: string;
+export type DecryptedTokenBase = {
+  /**
+   * `true` if the interaction is launched by a scripting or automated tool -- not a human.
+   *
+   * Modern automated browsers are only detected when calling the endpoint from Truesign's `<script>` or using the
+   * Botwall.
+   */
+  bot: boolean;
+  /**
+   * `true` if your visitor is using a VPN, proxy or the Tor network.
+   */
+  anonymizer: boolean;
+  /**
+   * A cluster is a distributed attack triggered by a single actor.
+   *
+   * Truesign can detect and link different requests to a single cluster. This field is `null` if the request doesn't
+   * belong to any cluster.
+   */
+  clusterId: string;
 
   // identifiers
-  uniqueKey: number;
-  timestamp: number;
-  ipv4: string;
-  ipv6: string;
-  country: string;
+  /**
+   * Number in range (0 -- 2^53). Each token contains a different value.
+   * 
+   * Avoid visitors reusing tokens by keeping track of what uniqueKeys you've seen in the last N minutes.
+   */
+  uniqueKey: number,
+  /**
+   * The token creation time as Unix epoch with millisecond resolution.
+   *
+   * Avoid visitors reusing tokens by rejecting timestamps older than N minutes.
+   */
+  timestamp: number,
+  /**
+   * [ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes, plus:
+   * - `XK` as an internationally agreed temporary code for Kosovo.
+   * - `unknown` in case the country cannot be determined from the IP.
+   */
+  country: string,
+};
 
-  // only if the request is blocked
-  blocked?: 'anonymizer' | 'cluster' | 'disposable' | 'notdeliverable' | 'notbrowser' | 'ratelimit' | 'country' | 'cors';
-}
+/**
+ * Only added if an email or domain was passed on the request.
+ */
+export type DecryptedTokenEmail =
+  | {
+    /**
+     * The email you passed for Truesign to verify on this request.
+     */
+    email: string,
+    /**
+     * `true` if the email belongs to a temporary email service.
+     */
+    disposable: boolean,
+    /**
+     * `true` if the domain doesn't provide mail services, or (if doing deep email validation) the email address doesn't
+     * exist on this email service.
+     */
+    notDeliverable: boolean,
+    /**
+     * Only present when the email domain doesn't exist but it resembles an existing email service. In that case, it
+     * contains the correct domain name.
+     * 
+     * For example if the user inputs "gmai.com" the token will contain `"typo": "gmail.com"`.
+     */
+    typo: string,
+  }
+  | {
+    email?: never,
+    disposable?: never,
+    notDeliverable?: never,
+    typo?: never,
+  };
+
+/** Your user's IP. */
+export type DecryptedTokenIp =
+  | {
+    /** Your user's IPv4. */
+    ipv4: string;
+  }
+  | {
+    /**
+     * Your user's IPv6 in expanded format.
+     */
+    ipv6: string;
+  };
 
 /**
  * From official site: https://my.truesign.ai/docs
