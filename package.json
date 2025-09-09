@@ -11,7 +11,7 @@
   "scripts": {
     "prepare": "npm run build",
     "prepublishOnly": "npm run release && npm run build",
-    "build": "tsc",
+    "build": "tsc --build",
     "test": "jest",
     "release": "standard-version"
   },
@@ -20,6 +20,9 @@
     "fastify-hook",
     "fastify-truesign",
     "truesign"
+  ],
+  "files": [
+    "dist"
   ],
   "author": "Julian Toledo",
   "license": "ISC",
