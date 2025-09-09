@@ -5,7 +5,7 @@ export type DecryptedToken =
   & DecryptedTokenEmail
   & DecryptedTokenIp;
 
-export type DecryptedTokenBase = {
+type DecryptedTokenBase = {
   /**
    * `true` if the interaction is launched by a scripting or automated tool -- not a human.
    *
@@ -49,7 +49,7 @@ export type DecryptedTokenBase = {
 /**
  * Only added if an email or domain was passed on the request.
  */
-export type DecryptedTokenEmail =
+type DecryptedTokenEmail =
   | {
     /**
      * The email you passed for Truesign to verify on this request.
@@ -80,7 +80,7 @@ export type DecryptedTokenEmail =
   };
 
 /** Your user's IP. */
-export type DecryptedTokenIp =
+type DecryptedTokenIp =
   | {
     /** Your user's IPv4. */
     ipv4: string;
@@ -113,13 +113,37 @@ export type ShouldAcceptTokenFunction = (
   options?: TruesignHookConfig,
 ) => boolean;
 
-export interface TruesignHookConfig {
+export type DecryptTokenFunction = (
+  encryptionKey: string,
+  token: string,
+) => DecryptedToken;
+
+export type TruesignHookConfig = {
+  /**
+   * Token encryption key, as listed in your [Truesign dashboard](https://my.truesign.ai/dashboard#endpoints).
+   */
   encryptionKey: string;
-  allowUnauthenticated: boolean;
+  /**
+   * If `true`, the hook will allow requests without a token.
+   */
+  allowUnauthenticated?: boolean;
+  /**
+   * A function that receives the decrypted token and returns `true` if the request should be accepted.
+   */
   shouldAcceptToken: ShouldAcceptTokenFunction;
+  /**
+   * The query string key where the token is expected to be found.
+   * 
+   * Also serves as the key where the decrypted token is injected in `request` for later middlewares or route handler.
+   * 
+   * @default 'ts-token'
+   */
   queryStringPath?: string;
-  decryptFunction?: Function;
-}
+  /**
+   * Optional custom decrypt function if you want to override the default one.
+   */
+  decryptFunction?: DecryptTokenFunction;
+};
 
 /**
  * Given a TruesignHookConfig, returns a Fastify hook function (request, response, callback) 

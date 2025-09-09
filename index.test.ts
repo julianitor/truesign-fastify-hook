@@ -1,4 +1,4 @@
-import { getTruesignHook } from './index';
+import { type DecryptedToken, getTruesignHook } from './index';
 
 function getMockResponse() {
   return {
@@ -19,7 +19,7 @@ test('Allowing unauthenticated', () => {
     encryptionKey: 'foo',
   }
   const mockCb = jest.fn();
-  const mockResponse = getMockResponse(); 
+  const mockResponse = getMockResponse();
   const mockRequest = {
     query: {
       'ts-token': '123',
@@ -38,7 +38,7 @@ test('Not allowing unauthenticated but passing empty encryptionKey', () => {
     encryptionKey: '',
   }
   const mockCb = jest.fn();
-  const mockResponse = getMockResponse(); 
+  const mockResponse = getMockResponse();
   const mockRequest = {
     query: {
       'ts-token': '123',
@@ -57,7 +57,7 @@ test('Response sending 401 if the token is not provided', () => {
     encryptionKey: 'foo',
   }
   const mockCb = jest.fn();
-  const mockResponse = getMockResponse(); 
+  const mockResponse = getMockResponse();
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
     query: { },
@@ -74,10 +74,10 @@ test('Response sending 401 if shouldAcceptToken resolves to false', () => {
     allowUnauthenticated: false,
     shouldAcceptToken: () => false,
     encryptionKey: 'foo',
-    decryptFunction: () => 'bar',
+    decryptFunction: () => ({} as unknown as DecryptedToken),
   }
   const mockCb = jest.fn();
-  const mockResponse = getMockResponse(); 
+  const mockResponse = getMockResponse();
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
     query: {
@@ -96,10 +96,10 @@ test('Allowing properly authenticated token', () => {
     allowUnauthenticated: false,
     shouldAcceptToken: () => true,
     encryptionKey: 'foo',
-    decryptFunction: () => 'bar',
+    decryptFunction: () => ({} as unknown as DecryptedToken),
   }
   const mockCb = jest.fn();
-  const mockResponse = getMockResponse(); 
+  const mockResponse = getMockResponse();
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
     query: {
