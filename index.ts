@@ -110,7 +110,7 @@ export function decryptTruesignToken(encryptionKey: string, token: string): Decr
 
 export type ShouldAcceptTokenFunction = (
   decryptedToken: DecryptedToken,
-  options?: TruesignHookConfig,
+  options: TruesignHookConfig,
 ) => boolean;
 
 export type DecryptTokenFunction = (
