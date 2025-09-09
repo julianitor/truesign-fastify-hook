@@ -116,10 +116,7 @@ export type ShouldAcceptTokenFunction = (
 export interface TruesignHookConfig {
   encryptionKey: string;
   allowUnauthenticated: boolean;
-  shouldAcceptToken: (
-    decryptedToken: DecryptedToken,
-    options?: TruesignHookConfig,
-  ) => boolean;
+  shouldAcceptToken: ShouldAcceptTokenFunction;
   queryStringPath?: string;
   decryptFunction?: Function;
 }
