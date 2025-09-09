@@ -40,5 +40,8 @@
   },
   "dependencies": {
     "@types/node": "^20.8.9"
+  },
+  "peerDependencies": {
+    "fastify": ">=2 <=3"
   }
 }
