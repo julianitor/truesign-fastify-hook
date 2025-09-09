@@ -128,9 +128,9 @@ export function decryptTruesignToken(encryptionKey: string, token: string): Decr
   }
 }
 
-export type ShouldAcceptTokenFunction = (
+export type ShouldAcceptTokenFunction<AdditionalConfig extends Record<string, unknown> = {}> = (
   decryptedToken: DecryptedToken,
-  options: TruesignHookConfig,
+  options: TruesignHookConfig<AdditionalConfig>,
 ) => boolean;
 
 export type DecryptTokenFunction = (
@@ -150,13 +150,18 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
      */
     encryptionKey: string;
     /**
-     * If `true`, the hook will allow requests without a token.
+     * If `true`, the hook will allow all requests, completely bypassing the hook.
      */
     allowUnauthenticated?: boolean;
     /**
-     * A function that receives the decrypted token and returns `true` if the request should be accepted.
+     * A function that receives the decrypted token and returns whether the token should be accepted.
+     * 
+     * It receives the decrypted token and the full config object as parameters, so you can use other config values in
+     * your logic.
+     * 
+     * @default `() => true`
      */
-    shouldAcceptToken: ShouldAcceptTokenFunction;
+    shouldAcceptToken?: ShouldAcceptTokenFunction<Additional>;
     /**
      * The query string key where the token is expected to be found.
      * 
@@ -166,7 +171,7 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
      */
     queryStringPath?: string;
     /**
-     * Optional custom decrypt function if you want to override the default one.
+     * Custom decrypt function.
      * 
      * @default decryptTruesignToken
      */
@@ -184,10 +189,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * @param config TruesignHookConfig
  * @returns Fastify hook function
  */
-export const getTruesignHook = (config: TruesignHookConfig) => {
+export function getTruesignHook<AdditionalConfig extends Record<string, unknown> = {}>(
+  config: TruesignHookConfig<AdditionalConfig>
+): (req: FastifyRequest, res: FastifyReply, next: HookHandlerDoneFunction) => void {
   if (config.allowUnauthenticated) {
-    return (_req: FastifyRequest, _res: FastifyReply, next: HookHandlerDoneFunction) => {
-      next()
+    return (_req, _res, next) => {
+      next();
     };
   }
 
@@ -195,10 +202,11 @@ export const getTruesignHook = (config: TruesignHookConfig) => {
     throw new Error('`encryptionKey` is required when `allowUnauthenticated` is false');
   }
 
+  const shouldAcceptToken = config.shouldAcceptToken ?? (() => true);
   const decryptFunction = config.decryptFunction ?? decryptTruesignToken;
   const queryPath = config.queryStringPath || 'ts-token';
 
-  return (req: FastifyRequest, res: FastifyReply, next: HookHandlerDoneFunction) => {
+  return (req, res, next) => {
     try {
       if (!isRecord(req.query)) {
         throw new Error('`req.query` is not a record');
@@ -210,7 +218,7 @@ export const getTruesignHook = (config: TruesignHookConfig) => {
       }
 
       const decryptedToken = decryptFunction(config.encryptionKey, tsToken);
-      if (decryptedToken === null || !config.shouldAcceptToken(decryptedToken, config)) {
+      if (decryptedToken === null || !shouldAcceptToken(decryptedToken, config)) {
         return res.code(401).send();
       }
 
