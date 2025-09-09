@@ -118,32 +118,39 @@ export type DecryptTokenFunction = (
   token: string,
 ) => DecryptedToken;
 
-export type TruesignHookConfig = {
-  /**
-   * Token encryption key, as listed in your [Truesign dashboard](https://my.truesign.ai/dashboard#endpoints).
-   */
-  encryptionKey: string;
-  /**
-   * If `true`, the hook will allow requests without a token.
-   */
-  allowUnauthenticated?: boolean;
-  /**
-   * A function that receives the decrypted token and returns `true` if the request should be accepted.
-   */
-  shouldAcceptToken: ShouldAcceptTokenFunction;
-  /**
-   * The query string key where the token is expected to be found.
-   * 
-   * Also serves as the key where the decrypted token is injected in `request` for later middlewares or route handler.
-   * 
-   * @default 'ts-token'
-   */
-  queryStringPath?: string;
-  /**
-   * Optional custom decrypt function if you want to override the default one.
-   */
-  decryptFunction?: DecryptTokenFunction;
-};
+/**
+ * Configuration object for the Truesign Fastify hook.
+ * 
+ * {@link Additional} can be used to extend the config with custom properties.
+ */
+export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> =
+  & {
+    /**
+     * Token encryption key, as listed in your [Truesign dashboard](https://my.truesign.ai/dashboard#endpoints).
+     */
+    encryptionKey: string;
+    /**
+     * If `true`, the hook will allow requests without a token.
+     */
+    allowUnauthenticated?: boolean;
+    /**
+     * A function that receives the decrypted token and returns `true` if the request should be accepted.
+     */
+    shouldAcceptToken: ShouldAcceptTokenFunction;
+    /**
+     * The query string key where the token is expected to be found.
+     * 
+     * Also serves as the key where the decrypted token is injected in `request` for later middlewares or route handler.
+     * 
+     * @default 'ts-token'
+     */
+    queryStringPath?: string;
+    /**
+     * Optional custom decrypt function if you want to override the default one.
+     */
+    decryptFunction?: DecryptTokenFunction;
+  }
+  & Additional;
 
 /**
  * Given a TruesignHookConfig, returns a Fastify hook function (request, response, callback) 
