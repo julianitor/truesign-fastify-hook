@@ -1,9 +1,5 @@
 import * as crypto from 'crypto';
 
-export interface DynamicObject {
-  [k: string]: any;
-}
-
 export interface DecryptedToken {
   anonymizer: boolean;
   notBrowser: boolean;
@@ -48,7 +44,7 @@ export type ShouldAcceptTokenFunction = (
   options?: TruesignHookConfig,
   ) => boolean;
 
-export interface TruesignHookConfig extends DynamicObject {
+export interface TruesignHookConfig {
   encryptionKey: string;
   allowUnauthenticated: boolean;
   shouldAcceptToken: (
