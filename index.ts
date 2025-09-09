@@ -93,19 +93,39 @@ type DecryptedTokenIp =
   };
 
 /**
- * From official site: https://my.truesign.ai/docs
- * Decrypts token with encryptionKey and returns a JSON with the decrypted info 
+ * Decrypts token with encryptionKey and returns a JSON with the decrypted info.
+ * 
+ * If the token is invalid or decryption fails, it returns `null`.
+ * 
+ * @see https://my.truesign.ai/docs
  * @param encryptionKey string
  * @param token string 
- * @returns DecryptedToken 
+ * @returns DecryptedToken or `null` if decryption failed
  */
-export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken {
-  const iv = token.substring(0, 16);
-  const encryptedMsg = token.substring(16);
-  const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
-  let decryptedTxt = decipher.update(encryptedMsg, 'base64', 'utf8');
-  decryptedTxt += decipher.final('utf8');
-  return JSON.parse(decryptedTxt);
+export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken | null {
+  const IV_LENGTH = 16; // For AES-256-CBC, this is always 16
+
+  if (token.length < IV_LENGTH) {
+    return null;
+  }
+
+  try {
+    const iv = token.substring(0, IV_LENGTH);
+    const encryptedMsg = token.substring(IV_LENGTH);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
+    let decryptedTxt = decipher.update(encryptedMsg, 'base64', 'utf8');
+    decryptedTxt += decipher.final('utf8');
+
+    // Here we assume that the decrypted text conforms to DecryptedToken, which should be true since only Truesign
+    // could have generated it.
+    return JSON.parse(decryptedTxt) as DecryptedToken;
+  } catch (error) {
+    // Since Truesign tokens are user-controlled input, decryption can fail for many reasons (invalid base64, invalid
+    // iv, invalid json...)
+    // We log the error for debugging purposes, but we don't throw to avoid breaking the request flow.
+    console.warn('Error decrypting Truesign token:', error);
+    return null;
+  }
 }
 
 export type ShouldAcceptTokenFunction = (
@@ -116,7 +136,7 @@ export type ShouldAcceptTokenFunction = (
 export type DecryptTokenFunction = (
   encryptionKey: string,
   token: string,
-) => DecryptedToken;
+) => DecryptedToken | null;
 
 /**
  * Configuration object for the Truesign Fastify hook.
@@ -147,6 +167,8 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     queryStringPath?: string;
     /**
      * Optional custom decrypt function if you want to override the default one.
+     * 
+     * @default decryptTruesignToken
      */
     decryptFunction?: DecryptTokenFunction;
   }
@@ -188,7 +210,7 @@ export const getTruesignHook = (config: TruesignHookConfig) => {
       }
 
       const decryptedToken = decryptFunction(config.encryptionKey, tsToken);
-      if (!config.shouldAcceptToken(decryptedToken, config)) {
+      if (decryptedToken === null || !config.shouldAcceptToken(decryptedToken, config)) {
         return res.code(401).send();
       }
 
