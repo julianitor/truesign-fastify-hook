@@ -92,6 +92,86 @@ type DecryptedTokenIp =
     ipv6: string;
   };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Generates a function that extracts the Truesign token from a query string param.
+ *
+ * @param queryParam Query param name where the token is expected to be found (case-sensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTruesignTokenFromQuery(
+  queryParam: string,
+): ExtractTokenFunction {
+  return (req: FastifyRequest) => {
+    if (!isRecord(req.query)) {
+      return null;
+    }
+
+    const tsToken = req.query[queryParam];
+    if (typeof tsToken !== 'string' || !tsToken) {
+      return null;
+    }
+
+    return tsToken;
+  };
+}
+
+/**
+ * Generates a function that extracts the Truesign token from a header.
+ *
+ * @param headerName Header name where the token is expected to be found (case-insensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTruesignTokenFromHeader(
+  headerName: string,
+): ExtractTokenFunction {
+  const headerNameLower = headerName.toLowerCase();
+
+  return (req: FastifyRequest) => {
+    const tsToken = req.headers[headerNameLower];
+    // This explicitly excludes string[] because we wouldn't be sure _which_ of the headers to use
+    if (typeof tsToken !== 'string' || !tsToken) {
+      return null;
+    }
+
+    return tsToken;
+  };
+}
+
+type ExtractTrueSignTokenOptions = {
+  queryParam?: string;
+  headerName?: string;
+};
+
+const DEFAULT_EXTRACT_QUERY_PARAM = 'ts-token';
+const DEFAULT_EXTRACT_HEADER_NAME = 'x-ts-token';
+
+/**
+ * Default Truesign token extraction function.
+ * 
+ * Extracts the Truesign token from either a query parameter or a header.
+ *
+ * @param queryParam Query param name where the token is expected to be found (case-sensitive)
+ * @param headerName Header name where the token is expected to be found (case-insensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTrueSignToken(options: ExtractTrueSignTokenOptions = {}): ExtractTokenFunction {
+  const {
+    queryParam = DEFAULT_EXTRACT_QUERY_PARAM,
+    headerName = DEFAULT_EXTRACT_HEADER_NAME,
+  } = options;
+
+  const extractFromQuery = extractTruesignTokenFromQuery(queryParam);
+  const extractFromHeader = extractTruesignTokenFromHeader(headerName);
+
+  return (req: FastifyRequest) => {
+    return extractFromQuery(req) ?? extractFromHeader(req);
+  };
+}
+
 /**
  * Decrypts token with encryptionKey and returns a JSON with the decrypted info.
  * 
@@ -133,6 +213,10 @@ export type ShouldAcceptTokenFunction<AdditionalConfig extends Record<string, un
   options: TruesignHookConfig<AdditionalConfig>,
 ) => boolean;
 
+export type ExtractTokenFunction = (
+  req: FastifyRequest,
+) => string | null;
+
 export type DecryptTokenFunction = (
   encryptionKey: string,
   token: string,
@@ -163,13 +247,23 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
      */
     shouldAcceptToken?: ShouldAcceptTokenFunction<Additional>;
     /**
-     * The query string key where the token is expected to be found.
+     * Function that extracts the token from the {@link FastifyRequest}.
      * 
-     * Also serves as the key where the decrypted token is injected in `request` for later middlewares or route handler.
+     * @default
+     * ```
+     * extractTrueSignToken({
+     *   queryParam: 'ts-token',
+     *   headerName: 'x-ts-token',
+     * })
+     * ```
+     */
+    extractToken?: ExtractTokenFunction;
+    /**
+     * The key where the decrypted token is injected in {@link FastifyRequest} for later middlewares or route handler.
      * 
      * @default 'ts-token'
      */
-    queryStringPath?: string;
+    injectInto?: string;
     /**
      * Custom decrypt function.
      * 
@@ -178,10 +272,6 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     decryptFunction?: DecryptTokenFunction;
   }
   & Additional;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /**
  * Returns a Fastify hook that validates Truesign tokens and injects the decrypted token in the request.
@@ -203,8 +293,9 @@ export function getTruesignHook<AdditionalConfig extends Record<string, unknown>
   }
 
   const shouldAcceptToken = config.shouldAcceptToken ?? (() => true);
+  const extractToken = config.extractToken ?? extractTrueSignToken();
   const decryptFunction = config.decryptFunction ?? decryptTruesignToken;
-  const queryPath = config.queryStringPath || 'ts-token';
+  const injectInto = config.injectInto || 'ts-token';
 
   return (req, res, next) => {
     try {
@@ -212,7 +303,7 @@ export function getTruesignHook<AdditionalConfig extends Record<string, unknown>
         throw new Error('`req.query` is not a record');
       }
 
-      const tsToken = req.query[queryPath];
+      const tsToken = extractToken(req);
       if (typeof tsToken !== 'string' || !tsToken) {
         return res.code(401).send();
       }
@@ -224,7 +315,7 @@ export function getTruesignHook<AdditionalConfig extends Record<string, unknown>
 
       // @todo Figure out a better way to inject this in the request without type casting
       //       It's not clear how decorator typing works inside hooks
-      (req as unknown as Record<string, unknown>)[queryPath] = decryptedToken;
+      (req as unknown as Record<string, unknown>)[injectInto] = decryptedToken;
       next();
     } catch (error) {
       console.error(error);
