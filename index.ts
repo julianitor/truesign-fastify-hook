@@ -1,4 +1,4 @@
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 
 export type DecryptedToken =
   & DecryptedTokenBase
@@ -152,30 +152,53 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
   }
   & Additional;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
- * Given a TruesignHookConfig, returns a Fastify hook function (request, response, callback) 
- * It injects tsToken in request to be available in next middlewares or route handler.
+ * Returns a Fastify hook that validates Truesign tokens and injects the decrypted token in the request.
+ *
  * @param config TruesignHookConfig
- * @returns 
+ * @returns Fastify hook function
  */
-export const getTruesignHook = (config: TruesignHookConfig) => (req: any, res: any, next: any) => {
-  try {
-    const queryPath = config.queryStringPath || 'ts-token';
-    if (config.allowUnauthenticated || !config.encryptionKey) {
-      return next();
-    }
-    const tsToken = req.query[queryPath];
-    if (!tsToken) {
-      return res.code(401).send();
-    }
-    const decryptedToken = (config.decryptFunction || decryptTruesignToken)(config.encryptionKey, tsToken);
-    if (!config.shouldAcceptToken(decryptedToken, config)) {
-      return res.code(401).send();
-    }
-    req[queryPath] = decryptedToken;
-    next();
-  } catch (error) {
-    console.error(error);
-    return res.code(401).send();
+export const getTruesignHook = (config: TruesignHookConfig) => {
+  if (config.allowUnauthenticated) {
+    return (_req: FastifyRequest, _res: FastifyReply, next: HookHandlerDoneFunction) => {
+      next()
+    };
   }
+
+  if (!config.encryptionKey) {
+    throw new Error('`encryptionKey` is required when `allowUnauthenticated` is false');
+  }
+
+  const decryptFunction = config.decryptFunction ?? decryptTruesignToken;
+  const queryPath = config.queryStringPath || 'ts-token';
+
+  return (req: FastifyRequest, res: FastifyReply, next: HookHandlerDoneFunction) => {
+    try {
+      if (!isRecord(req.query)) {
+        throw new Error('`req.query` is not a record');
+      }
+
+      const tsToken = req.query[queryPath];
+      if (typeof tsToken !== 'string' || !tsToken) {
+        return res.code(401).send();
+      }
+
+      const decryptedToken = decryptFunction(config.encryptionKey, tsToken);
+      if (!config.shouldAcceptToken(decryptedToken, config)) {
+        return res.code(401).send();
+      }
+
+      // @todo Figure out a better way to inject this in the request without type casting
+      //       It's not clear how decorator typing works inside hooks
+      (req as unknown as Record<string, unknown>)[queryPath] = decryptedToken;
+      next();
+    } catch (error) {
+      console.error(error);
+      return res.code(401).send();
+    }
+  };
 };

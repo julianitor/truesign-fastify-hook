@@ -1,6 +1,8 @@
+/// <reference types="./fastify.d.ts" />
+
 import { type DecryptedToken, getTruesignHook } from './index';
 
-function getMockResponse() {
+function getMockResponse(): FastifyReply {
   return {
     code(n: number) {
       return {
@@ -9,7 +11,7 @@ function getMockResponse() {
         }
       }
     }
-  }
+  } as unknown as FastifyReply;
 }
 
 test('Allowing unauthenticated', () => {
@@ -24,30 +26,29 @@ test('Allowing unauthenticated', () => {
     query: {
       'ts-token': '123',
     },
-  }
+  } as unknown as FastifyRequest;
 
   const hook = getTruesignHook(config);
   hook(mockRequest, mockResponse, mockCb);
   expect(mockCb).toBeCalled();
 });
 
-test('Not allowing unauthenticated but passing empty encryptionKey', () => {
+test('Not allowing empty encryptionKey', () => {
   const config = {
     allowUnauthenticated: false,
     shouldAcceptToken: () => false,
     encryptionKey: '',
   }
-  const mockCb = jest.fn();
-  const mockResponse = getMockResponse();
-  const mockRequest = {
-    query: {
-      'ts-token': '123',
-    },
-  }
+  expect(() => getTruesignHook(config)).toThrow();
+});
 
-  const hook = getTruesignHook(config);
-  hook(mockRequest, mockResponse, mockCb);
-  expect(mockCb).toBeCalled();
+test('Allowing empty encryptionKey if unauthenticated are allowed', () => {
+  const config = {
+    allowUnauthenticated: true,
+    shouldAcceptToken: () => false,
+    encryptionKey: '',
+  }
+  expect(() => getTruesignHook(config)).not.toThrow();
 });
 
 test('Response sending 401 if the token is not provided', () => {
@@ -60,8 +61,8 @@ test('Response sending 401 if the token is not provided', () => {
   const mockResponse = getMockResponse();
   const spy = jest.spyOn(mockResponse, 'code');
   const mockRequest = {
-    query: { },
-  }
+    query: {},
+  } as unknown as FastifyRequest;
 
   const hook = getTruesignHook(config);
   hook(mockRequest, mockResponse, mockCb);
@@ -83,7 +84,7 @@ test('Response sending 401 if shouldAcceptToken resolves to false', () => {
     query: {
       'ts-token': 'jarl',
     },
-  }
+  } as unknown as FastifyRequest;
 
   const hook = getTruesignHook(config);
   hook(mockRequest, mockResponse, mockCb);
@@ -105,7 +106,7 @@ test('Allowing properly authenticated token', () => {
     query: {
       'ts-token': 'jarl',
     },
-  }
+  } as unknown as FastifyRequest;
 
   const hook = getTruesignHook(config);
   hook(mockRequest, mockResponse, mockCb);
