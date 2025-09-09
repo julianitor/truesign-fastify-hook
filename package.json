@@ -21,6 +21,9 @@
     "fastify-truesign",
     "truesign"
   ],
+  "files": [
+    "dist"
+  ],
   "author": "Julian Toledo",
   "license": "ISC",
   "devDependencies": {
