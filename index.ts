@@ -42,7 +42,7 @@ export function decryptTruesignToken(encryptionKey: string, token: string): Decr
 export type ShouldAcceptTokenFunction = (
   decryptedToken: DecryptedToken,
   options?: TruesignHookConfig,
-  ) => boolean;
+) => boolean;
 
 export interface TruesignHookConfig {
   encryptionKey: string;
@@ -52,7 +52,7 @@ export interface TruesignHookConfig {
     options?: TruesignHookConfig,
   ) => boolean;
   queryStringPath?: string;
-  decryptFunction?: Function; 
+  decryptFunction?: Function;
 }
 
 /**
