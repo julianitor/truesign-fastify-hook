@@ -2,9 +2,13 @@
 // hook to work in both Fastify v2 and v3 projects.
 //
 // This is the bare minimum we need from those types to make the hook work and be properly typed.
+//
+// Since this file is not shipped in the package (only the built files in `dist`) the receiver of the package will
+// typecheck against their own Fastify version, so this should be safe.
 
 type FastifyRequest = {
   query: unknown;
+  headers: Record<string, string | string[] | undefined>;
 };
 
 type FastifyReply = {

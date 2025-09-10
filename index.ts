@@ -92,31 +92,135 @@ type DecryptedTokenIp =
     ipv6: string;
   };
 
-/**
- * From official site: https://my.truesign.ai/docs
- * Decrypts token with encryptionKey and returns a JSON with the decrypted info 
- * @param encryptionKey string
- * @param token string 
- * @returns DecryptedToken 
- */
-export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken {
-  const iv = token.substring(0, 16);
-  const encryptedMsg = token.substring(16);
-  const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
-  let decryptedTxt = decipher.update(encryptedMsg, 'base64', 'utf8');
-  decryptedTxt += decipher.final('utf8');
-  return JSON.parse(decryptedTxt);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export type ShouldAcceptTokenFunction = (
+/**
+ * Generates a function that extracts the Truesign token from a query string param.
+ *
+ * @param queryParam Query param name where the token is expected to be found (case-sensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTruesignTokenFromQuery(
+  queryParam: string,
+): ExtractTokenFunction {
+  return (req: FastifyRequest) => {
+    if (!isRecord(req.query)) {
+      return null;
+    }
+
+    const tsToken = req.query[queryParam];
+    if (typeof tsToken !== 'string' || !tsToken) {
+      return null;
+    }
+
+    return tsToken;
+  };
+}
+
+/**
+ * Generates a function that extracts the Truesign token from a header.
+ *
+ * @param headerName Header name where the token is expected to be found (case-insensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTruesignTokenFromHeader(
+  headerName: string,
+): ExtractTokenFunction {
+  const headerNameLower = headerName.toLowerCase();
+
+  return (req: FastifyRequest) => {
+    const tsToken = req.headers[headerNameLower];
+    // This explicitly excludes string[] because we wouldn't be sure _which_ of the headers to use
+    if (typeof tsToken !== 'string' || !tsToken) {
+      return null;
+    }
+
+    return tsToken;
+  };
+}
+
+type ExtractTrueSignTokenOptions = {
+  queryParam?: string;
+  headerName?: string;
+};
+
+const DEFAULT_EXTRACT_QUERY_PARAM = 'ts-token';
+const DEFAULT_EXTRACT_HEADER_NAME = 'x-ts-token';
+
+/**
+ * Default Truesign token extraction function.
+ * 
+ * Extracts the Truesign token from either a query parameter or a header.
+ *
+ * @param queryParam Query param name where the token is expected to be found (case-sensitive)
+ * @param headerName Header name where the token is expected to be found (case-insensitive)
+ * @returns A function that extracts the token from the request
+ */
+export function extractTrueSignToken(options: ExtractTrueSignTokenOptions = {}): ExtractTokenFunction {
+  const {
+    queryParam = DEFAULT_EXTRACT_QUERY_PARAM,
+    headerName = DEFAULT_EXTRACT_HEADER_NAME,
+  } = options;
+
+  const extractFromQuery = extractTruesignTokenFromQuery(queryParam);
+  const extractFromHeader = extractTruesignTokenFromHeader(headerName);
+
+  return (req: FastifyRequest) => {
+    return extractFromQuery(req) ?? extractFromHeader(req);
+  };
+}
+
+/**
+ * Decrypts token with encryptionKey and returns a JSON with the decrypted info.
+ * 
+ * If the token is invalid or decryption fails, it returns `null`.
+ * 
+ * @see https://my.truesign.ai/docs
+ * @param encryptionKey string
+ * @param token string 
+ * @returns DecryptedToken or `null` if decryption failed
+ */
+export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken | null {
+  const IV_LENGTH = 16; // For AES-256-CBC, this is always 16
+
+  if (token.length < IV_LENGTH) {
+    return null;
+  }
+
+  try {
+    const iv = token.substring(0, IV_LENGTH);
+    const encryptedMsg = token.substring(IV_LENGTH);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
+    let decryptedTxt = decipher.update(encryptedMsg, 'base64', 'utf8');
+    decryptedTxt += decipher.final('utf8');
+
+    // Here we assume that the decrypted text conforms to DecryptedToken, which should be true since only Truesign
+    // could have generated it.
+    return JSON.parse(decryptedTxt) as DecryptedToken;
+  } catch (error) {
+    // Since Truesign tokens are user-controlled input, decryption can fail for many reasons (invalid base64, invalid
+    // iv, invalid json...)
+    // We log the error for debugging purposes, but we don't throw to avoid breaking the request flow.
+    console.warn('Error decrypting Truesign token:', error);
+    return null;
+  }
+}
+
+export type ShouldAcceptTokenFunction<AdditionalConfig extends Record<string, unknown> = {}> = (
   decryptedToken: DecryptedToken,
-  options: TruesignHookConfig,
+  options: TruesignHookConfig<AdditionalConfig>,
 ) => boolean;
+
+export type ExtractTokenFunction = (
+  req: FastifyRequest,
+) => string | null;
 
 export type DecryptTokenFunction = (
   encryptionKey: string,
   token: string,
-) => DecryptedToken;
+) => DecryptedToken | null;
 
 /**
  * Configuration object for the Truesign Fastify hook.
@@ -130,31 +234,44 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
      */
     encryptionKey: string;
     /**
-     * If `true`, the hook will allow requests without a token.
+     * If `true`, the hook will allow all requests, completely bypassing the hook.
      */
     allowUnauthenticated?: boolean;
     /**
-     * A function that receives the decrypted token and returns `true` if the request should be accepted.
-     */
-    shouldAcceptToken: ShouldAcceptTokenFunction;
-    /**
-     * The query string key where the token is expected to be found.
+     * A function that receives the decrypted token and returns whether the token should be accepted.
      * 
-     * Also serves as the key where the decrypted token is injected in `request` for later middlewares or route handler.
+     * It receives the decrypted token and the full config object as parameters, so you can use other config values in
+     * your logic.
+     * 
+     * @default `() => true`
+     */
+    shouldAcceptToken?: ShouldAcceptTokenFunction<Additional>;
+    /**
+     * Function that extracts the token from the {@link FastifyRequest}.
+     * 
+     * @default
+     * ```
+     * extractTrueSignToken({
+     *   queryParam: 'ts-token',
+     *   headerName: 'x-ts-token',
+     * })
+     * ```
+     */
+    extractToken?: ExtractTokenFunction;
+    /**
+     * The key where the decrypted token is injected in {@link FastifyRequest} for later middlewares or route handler.
      * 
      * @default 'ts-token'
      */
-    queryStringPath?: string;
+    injectInto?: string;
     /**
-     * Optional custom decrypt function if you want to override the default one.
+     * Custom decrypt function.
+     * 
+     * @default decryptTruesignToken
      */
     decryptFunction?: DecryptTokenFunction;
   }
   & Additional;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /**
  * Returns a Fastify hook that validates Truesign tokens and injects the decrypted token in the request.
@@ -162,10 +279,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * @param config TruesignHookConfig
  * @returns Fastify hook function
  */
-export const getTruesignHook = (config: TruesignHookConfig) => {
+export function getTruesignHook<AdditionalConfig extends Record<string, unknown> = {}>(
+  config: TruesignHookConfig<AdditionalConfig>
+): (req: FastifyRequest, res: FastifyReply, next: HookHandlerDoneFunction) => void {
   if (config.allowUnauthenticated) {
-    return (_req: FastifyRequest, _res: FastifyReply, next: HookHandlerDoneFunction) => {
-      next()
+    return (_req, _res, next) => {
+      next();
     };
   }
 
@@ -173,28 +292,30 @@ export const getTruesignHook = (config: TruesignHookConfig) => {
     throw new Error('`encryptionKey` is required when `allowUnauthenticated` is false');
   }
 
+  const shouldAcceptToken = config.shouldAcceptToken ?? (() => true);
+  const extractToken = config.extractToken ?? extractTrueSignToken();
   const decryptFunction = config.decryptFunction ?? decryptTruesignToken;
-  const queryPath = config.queryStringPath || 'ts-token';
+  const injectInto = config.injectInto || 'ts-token';
 
-  return (req: FastifyRequest, res: FastifyReply, next: HookHandlerDoneFunction) => {
+  return (req, res, next) => {
     try {
       if (!isRecord(req.query)) {
         throw new Error('`req.query` is not a record');
       }
 
-      const tsToken = req.query[queryPath];
+      const tsToken = extractToken(req);
       if (typeof tsToken !== 'string' || !tsToken) {
         return res.code(401).send();
       }
 
       const decryptedToken = decryptFunction(config.encryptionKey, tsToken);
-      if (!config.shouldAcceptToken(decryptedToken, config)) {
+      if (decryptedToken === null || !shouldAcceptToken(decryptedToken, config)) {
         return res.code(401).send();
       }
 
       // @todo Figure out a better way to inject this in the request without type casting
       //       It's not clear how decorator typing works inside hooks
-      (req as unknown as Record<string, unknown>)[queryPath] = decryptedToken;
+      (req as unknown as Record<string, unknown>)[injectInto] = decryptedToken;
       next();
     } catch (error) {
       console.error(error);
