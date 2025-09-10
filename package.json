@@ -1,6 +1,6 @@
 {
   "name": "truesign-fastify-hook",
-  "version": "4.0.1",
+  "version": "4.0.0",
   "description": "Simple Fastify hook for handling requests with truesign tokens on query string",
   "repository": {
     "type": "git",
@@ -9,8 +9,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run release && npm run build && git push --follow-tags origin main",
+    "prepare": "npm run build && npm run release && git push --follow-tags origin main",
     "prebuild": "rimraf dist",
     "build": "tsc --build",
     "test": "jest",
