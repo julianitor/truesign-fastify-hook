@@ -9,11 +9,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepare": "npm run build && npm run release && git push --follow-tags origin main",
+    "prepack": "npm run test && npm run build",
     "prebuild": "rimraf dist",
     "build": "tsc --build",
     "test": "jest",
-    "release": "standard-version"
+    "release": "npm pack --dry-run && standard-version && npm publish && git push --follow-tags origin main"
   },
   "keywords": [
     "fastify",
