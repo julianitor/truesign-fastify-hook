@@ -7,31 +7,42 @@ export type DecryptedToken =
 
 type DecryptedTokenBase = {
   /**
-   * `true` if the interaction is launched by a scripting or automated tool -- not a human.
+   * From `0` to `9` how likely the request was launched by a scripting or automated tool -- not a
+   * human. Modern automated browsers are only detected when calling the endpoint from Truesign's
+   * `<script>` or using the Botwall.
    *
-   * Modern automated browsers are only detected when calling the endpoint from Truesign's `<script>` or using the
-   * Botwall.
+   * Currently only 3 possible values are returned:
+   * - `0`: definitely a human
+   * - `7`: very probably a bot, but on rare occasions humans with altered browser configurations can fall into this
+   *        category
+   * - `9`: definitely a bot
    */
-  bot: boolean;
+  bot: number;
   /**
-   * `true` if your visitor is using a VPN, proxy or the Tor network.
-   */
-  anonymizer: boolean;
-  /**
-   * A cluster is a distributed attack triggered by a single actor.
+   * From `0` to `9` how likely your visitor is using IP anonymizers like a VPN, proxy or the Tor network.
    *
-   * Truesign can detect and link different requests to a single cluster. This field is `null` if the request doesn't
-   * belong to any cluster.
+   * Currently only 3 possible values are returned:
+   * - `0`: definitely not using an IP anonymizer
+   * - `7`: very probably using an IP anonymizer, but some exotic network configurations can fall into this category
+   * - `9`: definitely using an IP anonymizer
    */
-  clusterId: string;
+  anonymizer: number;
+  /**
+   * Number in range (0 -- 2^53). A cluster is a distributed attack triggered by a single actor, manifested by a
+   * persisting volume of suspicious requests.
+   *
+   * Truesign can detect and unequivocally link different requests to a single cluster. This field is `0` when the
+   * request doesn't belong to a cluster.
+   */
+  clusterId: number;
 
   // identifiers
   /**
    * Number in range (0 -- 2^53). Each token contains a different value.
    *
-   * Avoid visitors reusing tokens by keeping track of what uniqueKeys you've seen in the last N minutes.
+   * Avoid visitors reusing tokens by keeping track of the `requestId`s received in the last N minutes.
    */
-  uniqueKey: number,
+  requestId: number,
   /**
    * The token creation time as Unix epoch with millisecond resolution.
    *
@@ -44,6 +55,15 @@ type DecryptedTokenBase = {
    * - `unknown` in case the country cannot be determined from the IP.
    */
   country: string,
+  /**
+   * The string you sent on the `meta` parameter when making the request. The field is not present when you don't send a
+   * `meta` value.
+   *
+   * Maximum 80 characters.
+   *
+   * Examples of useful contents are CRSF/one-time tokens, identifiers for your own rate-limiting logic, etc...
+   */
+  meta?: string,
 };
 
 /**
@@ -52,7 +72,7 @@ type DecryptedTokenBase = {
 type DecryptedTokenEmail =
   | {
     /**
-     * The email you passed for Truesign to verify on this request.
+     * The email or email domain you passed for Truesign to verify on this request.
      */
     email: string,
     /**
