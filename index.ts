@@ -7,31 +7,42 @@ export type DecryptedToken =
 
 type DecryptedTokenBase = {
   /**
-   * `true` if the interaction is launched by a scripting or automated tool -- not a human.
+   * From `0` to `9` how likely the request was launched by a scripting or automated tool -- not a
+   * human. Modern automated browsers are only detected when calling the endpoint from Truesign's
+   * `<script>` or using the Botwall.
    *
-   * Modern automated browsers are only detected when calling the endpoint from Truesign's `<script>` or using the
-   * Botwall.
+   * Currently only 3 possible values are returned:
+   * - `0`: definitely a human
+   * - `7`: very probably a bot, but on rare occasions humans with altered browser configurations can fall into this
+   *        category
+   * - `9`: definitely a bot
    */
-  bot: boolean;
+  bot: number;
   /**
-   * `true` if your visitor is using a VPN, proxy or the Tor network.
-   */
-  anonymizer: boolean;
-  /**
-   * A cluster is a distributed attack triggered by a single actor.
+   * From `0` to `9` how likely your visitor is using IP anonymizers like a VPN, proxy or the Tor network.
    *
-   * Truesign can detect and link different requests to a single cluster. This field is `null` if the request doesn't
-   * belong to any cluster.
+   * Currently only 3 possible values are returned:
+   * - `0`: definitely not using an IP anonymizer
+   * - `7`: very probably using an IP anonymizer, but some exotic network configurations can fall into this category
+   * - `9`: definitely using an IP anonymizer
    */
-  clusterId: string;
+  anonymizer: number;
+  /**
+   * Number in range (0 -- 2^53). A cluster is a distributed attack triggered by a single actor, manifested by a
+   * persisting volume of suspicious requests.
+   *
+   * Truesign can detect and unequivocally link different requests to a single cluster. This field is `0` when the
+   * request doesn't belong to a cluster.
+   */
+  clusterId: number;
 
   // identifiers
   /**
    * Number in range (0 -- 2^53). Each token contains a different value.
-   * 
-   * Avoid visitors reusing tokens by keeping track of what uniqueKeys you've seen in the last N minutes.
+   *
+   * Avoid visitors reusing tokens by keeping track of the `requestId`s received in the last N minutes.
    */
-  uniqueKey: number,
+  requestId: number,
   /**
    * The token creation time as Unix epoch with millisecond resolution.
    *
@@ -44,6 +55,15 @@ type DecryptedTokenBase = {
    * - `unknown` in case the country cannot be determined from the IP.
    */
   country: string,
+  /**
+   * The string you sent on the `meta` parameter when making the request. The field is not present when you don't send a
+   * `meta` value.
+   *
+   * Maximum 80 characters.
+   *
+   * Examples of useful contents are CRSF/one-time tokens, identifiers for your own rate-limiting logic, etc...
+   */
+  meta?: string,
 };
 
 /**
@@ -52,7 +72,7 @@ type DecryptedTokenBase = {
 type DecryptedTokenEmail =
   | {
     /**
-     * The email you passed for Truesign to verify on this request.
+     * The email or email domain you passed for Truesign to verify on this request.
      */
     email: string,
     /**
@@ -67,10 +87,15 @@ type DecryptedTokenEmail =
     /**
      * Only present when the email domain doesn't exist but it resembles an existing email service. In that case, it
      * contains the correct domain name.
-     * 
+     *
      * For example if the user inputs "gmai.com" the token will contain `"typo": "gmail.com"`.
+     *
+     * _(This behavior is not documented on Truesign's official documentation, but happens in practice.)_ Unlike what
+     * the docs say, when the email domain is valid or there are no typos, this field is present but `null`. To match
+     * this undocumented behavior, this field is typed as `string | null` instead of just `string` but also as `?` which
+     * is the officially-documented behavior.
      */
-    typo: string,
+    typo?: string | null,
   }
   | {
     email?: never,
@@ -151,7 +176,7 @@ const DEFAULT_EXTRACT_HEADER_NAME = 'x-ts-token';
 
 /**
  * Default Truesign token extraction function.
- * 
+ *
  * Extracts the Truesign token from either a query parameter or a header.
  *
  * @param queryParam Query param name where the token is expected to be found (case-sensitive)
@@ -174,12 +199,12 @@ export function extractTrueSignToken(options: ExtractTrueSignTokenOptions = {}):
 
 /**
  * Decrypts token with encryptionKey and returns a JSON with the decrypted info.
- * 
+ *
  * If the token is invalid or decryption fails, it returns `null`.
- * 
+ *
  * @see https://my.truesign.ai/docs
  * @param encryptionKey string
- * @param token string 
+ * @param token string
  * @returns DecryptedToken or `null` if decryption failed
  */
 export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken | null {
@@ -224,7 +249,7 @@ export type DecryptTokenFunction = (
 
 /**
  * Configuration object for the Truesign Fastify hook.
- * 
+ *
  * {@link Additional} can be used to extend the config with custom properties.
  */
 export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> =
@@ -239,16 +264,16 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     allowUnauthenticated?: boolean;
     /**
      * A function that receives the decrypted token and returns whether the token should be accepted.
-     * 
+     *
      * It receives the decrypted token and the full config object as parameters, so you can use other config values in
      * your logic.
-     * 
+     *
      * @default `() => true`
      */
     shouldAcceptToken?: ShouldAcceptTokenFunction<Additional>;
     /**
      * Function that extracts the token from the {@link FastifyRequest}.
-     * 
+     *
      * @default
      * ```
      * extractTrueSignToken({
@@ -260,13 +285,13 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     extractToken?: ExtractTokenFunction;
     /**
      * The key where the decrypted token is injected in {@link FastifyRequest} for later middlewares or route handler.
-     * 
+     *
      * @default 'ts-token'
      */
     injectInto?: string;
     /**
      * Custom decrypt function.
-     * 
+     *
      * @default decryptTruesignToken
      */
     decryptFunction?: DecryptTokenFunction;
