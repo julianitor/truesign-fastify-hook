@@ -89,8 +89,13 @@ type DecryptedTokenEmail =
      * contains the correct domain name.
      *
      * For example if the user inputs "gmai.com" the token will contain `"typo": "gmail.com"`.
+     *
+     * _(This behavior is not documented on Truesign's official documentation, but happens in practice.)_ Unlike what
+     * the docs say, when the email domain is valid or there are no typos, this field is present but `null`. To match
+     * this undocumented behavior, this field is typed as `string | null` instead of just `string` but also as `?` which
+     * is the officially-documented behavior.
      */
-    typo: string,
+    typo?: string | null,
   }
   | {
     email?: never,
