@@ -28,7 +28,7 @@ type DecryptedTokenBase = {
   // identifiers
   /**
    * Number in range (0 -- 2^53). Each token contains a different value.
-   * 
+   *
    * Avoid visitors reusing tokens by keeping track of what uniqueKeys you've seen in the last N minutes.
    */
   uniqueKey: number,
@@ -67,7 +67,7 @@ type DecryptedTokenEmail =
     /**
      * Only present when the email domain doesn't exist but it resembles an existing email service. In that case, it
      * contains the correct domain name.
-     * 
+     *
      * For example if the user inputs "gmai.com" the token will contain `"typo": "gmail.com"`.
      */
     typo: string,
@@ -151,7 +151,7 @@ const DEFAULT_EXTRACT_HEADER_NAME = 'x-ts-token';
 
 /**
  * Default Truesign token extraction function.
- * 
+ *
  * Extracts the Truesign token from either a query parameter or a header.
  *
  * @param queryParam Query param name where the token is expected to be found (case-sensitive)
@@ -174,12 +174,12 @@ export function extractTrueSignToken(options: ExtractTrueSignTokenOptions = {}):
 
 /**
  * Decrypts token with encryptionKey and returns a JSON with the decrypted info.
- * 
+ *
  * If the token is invalid or decryption fails, it returns `null`.
- * 
+ *
  * @see https://my.truesign.ai/docs
  * @param encryptionKey string
- * @param token string 
+ * @param token string
  * @returns DecryptedToken or `null` if decryption failed
  */
 export function decryptTruesignToken(encryptionKey: string, token: string): DecryptedToken | null {
@@ -224,7 +224,7 @@ export type DecryptTokenFunction = (
 
 /**
  * Configuration object for the Truesign Fastify hook.
- * 
+ *
  * {@link Additional} can be used to extend the config with custom properties.
  */
 export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> =
@@ -239,16 +239,16 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     allowUnauthenticated?: boolean;
     /**
      * A function that receives the decrypted token and returns whether the token should be accepted.
-     * 
+     *
      * It receives the decrypted token and the full config object as parameters, so you can use other config values in
      * your logic.
-     * 
+     *
      * @default `() => true`
      */
     shouldAcceptToken?: ShouldAcceptTokenFunction<Additional>;
     /**
      * Function that extracts the token from the {@link FastifyRequest}.
-     * 
+     *
      * @default
      * ```
      * extractTrueSignToken({
@@ -260,13 +260,13 @@ export type TruesignHookConfig<Additional extends Record<string, unknown> = {}> 
     extractToken?: ExtractTokenFunction;
     /**
      * The key where the decrypted token is injected in {@link FastifyRequest} for later middlewares or route handler.
-     * 
+     *
      * @default 'ts-token'
      */
     injectInto?: string;
     /**
      * Custom decrypt function.
-     * 
+     *
      * @default decryptTruesignToken
      */
     decryptFunction?: DecryptTokenFunction;
